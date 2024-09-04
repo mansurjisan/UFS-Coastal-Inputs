@@ -1,0 +1,17 @@
+1. gen_gr3_input.py:
+
+This code will generate albedo, diffmax, diffmin, watertype, windrot_geo2proj, manning's roguhness file in .gr3 format; currently set as constant values. Requires hgrid.gr3 as an input.
+usage: python gen_gr3_input.py
+
+2. gen_bctides.py:
+
+Generates bctides.in using TPXO
+usage: python gen_bctides.py ../../data/hgrid.ll 2008-08-23 20.0 '[[3,0,0,0]]' Q1,O1,P1,K1,N2,M2,S2,K2,Mm,Mf,M4,MN4,MS4,2N2,S1 tpxo --earth_tidal_potential Y --cutoff_depth 40
+
+3. gen_bnd.py
+
+Generates time series of water surface elevations elev2D.th.nc file based on Hycom. Not used in existing RT test.   
+usage: python gen_bnd.py
+
+
+
