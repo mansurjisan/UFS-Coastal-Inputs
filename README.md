@@ -4,7 +4,7 @@ This repository contains Python scripts for generating input files used in SCHIS
 
 ## Available Scripts
 
-### 1. Coastal Ike Shinnecock Atmospheric Model to SCHISM
+### 1. Coastal Ike Shinnecock
 
 - **Location:** `/scripts/coastal_ike_shinnecock_atm2sch`
 
