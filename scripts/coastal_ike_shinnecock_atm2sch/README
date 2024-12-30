@@ -5,8 +5,26 @@ usage: python gen_gr3_input.py
 
 2. gen_bctides.py:
 
-Generates bctides.in using TPXO
-usage: python gen_bctides.py ../../data/hgrid.ll 2008-08-23 20.0 '[[3,0,0,0]]' Q1,O1,P1,K1,N2,M2,S2,K2,Mm,Mf,M4,MN4,MS4,2N2,S1 tpxo --earth_tidal_potential Y --cutoff_depth 40
+a. To generate bctides.in for Ike Shinnecock regression test:
+
+python gen_bctides.py hgrid.ll 2008-08-23 20 \
+    --bc_mode tidal \
+    --bc_type 3 \
+    --constituents Q1,O1,P1,K1,N2,M2,S2,K2,Mm,Mf,M4,MN4,MS4,2N2,S1 \
+    --database tpxo \
+    --cutoff_depth 40 \
+    --earth_tidal_potential Y
+
+
+b. To generate bctides.in and elev2D.th.nc for Duck, NC regression test:
+
+
+python gen_bctides.py hgrid.ll 2012-10-27 2.333 \
+    --bc_mode time-elev \
+    --bc_type 4 \
+    --elev_th elev.th \
+    --vgrid vgrid.in
+
 
 3. gen_bnd.py
 
