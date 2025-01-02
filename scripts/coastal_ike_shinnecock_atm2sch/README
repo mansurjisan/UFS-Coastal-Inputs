@@ -19,7 +19,7 @@ python gen_bctides.py ../../data/hgrid.ll 2008-08-23 20 \
 b. To generate bctides.in and elev2D.th.nc for Duck, NC regression test:
 
 
-python gen_bctides.py hgrid.ll 2012-10-27 2.333 \
+python gen_bctides.py ../../data/hgrid.ll 2012-10-27 2.333 \
     --bc_mode time-elev \
     --bc_type 4 \
     --elev_th elev.th \
