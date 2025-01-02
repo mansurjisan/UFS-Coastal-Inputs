@@ -1,17 +1,24 @@
 """
+
 SCHISM Boundary Condition Generator for UFS-Coastal App (gen_bctides.py)
 ------------------------------------------------------------------------
 
+This script generates boundary condition files (bctides.in and elev2D.th.nc) for SCHISM model.
+
 Features:
-- Generates boundary condition files (bctides.in, elev2D.th.nc) for SCHISM
-- Supports:
-  * Tidal (type 3)
-  * Time-elevation (type 4) from elev.th or HYCOM data
-  * Temperature and salinity from HYCOM
-- Auto-detects open boundaries from hgrid.ll
+
+- Supports tidal (type 3) and time-elevation elev2d.th.nc (type 4) boundary conditions
+
+- Automatically reads open boundary information from hgrid.ll
+
+- Generates bctides.in for both boundary types
+
+- Creates elev2D.th.nc for time-elevation boundaries
 
 Usage:
+
 1. Tidal boundary (type 3):
+
    python gen_bctides.py hgrid.ll 2024-01-01 10 \
        --bc_mode tidal \
        --bc_type 3 \
@@ -19,52 +26,47 @@ Usage:
        --database tpxo \
        --earth_tidal_potential Y
 
-2. Time-elevation from file (type 4):
+2. Time-elevation boundary (type 4):
    python gen_bctides.py hgrid.ll 2024-01-01 10 \
        --bc_mode time-elev \
        --bc_type 4 \
-       --elev_source timeseries \
        --elev_th elev.th \
-       --vgrid vgrid.in
-
-3. HYCOM boundary conditions:
-   python gen_bctides.py hgrid.ll 2024-01-01 10 \
-       --bc_mode time-elev \
-       --bc_type 4 \
-       --elev_source hycom \
-       --gen_bc elev,temp,salt \
        --vgrid vgrid.in
 
 Required files:
+
 - hgrid.ll: SCHISM horizontal grid file
 - vgrid.in: Vertical grid file (for time-elev mode)
-- elev.th: Time series file (if using timeseries source)
+- elev.th: Time series of water elevation (for time-elev mode)
 
-Example Use Cases:
-a. Ike Shinnecock with tidal boundaries:
-   python gen_bctides.py hgrid.ll 2008-08-23 20 \
-       --bc_mode tidal \
-       --bc_type 3 \
-       --constituents Q1,O1,P1,K1,N2,M2,S2,K2,Mm,Mf,M4,MN4,MS4,2N2,S1 \
-       --database tpxo \
-       --cutoff_depth 40 \
-       --earth_tidal_potential Y
+a. To generate bctides.in for Ike Shinnecock regression test:
 
-b. Duck, NC with time series:
-   python gen_bctides.py hgrid.ll 2012-10-27 2.333 \
-       --bc_mode time-elev \
-       --bc_type 4 \
-       --elev_source timeseries \
-       --elev_th elev.th \
-       --vgrid vgrid.in
+python gen_bctides.py hgrid.ll 2008-08-23 20 \
+    --bc_mode tidal \
+    --bc_type 3 \
+    --constituents Q1,O1,P1,K1,N2,M2,S2,K2,Mm,Mf,M4,MN4,MS4,2N2,S1 \
+    --database tpxo \
+    --cutoff_depth 40 \
+    --earth_tidal_potential Y
+
+
+b. To generate bctides.in and elev2D.th.nc for Duck, NC regression test:
+
+
+python gen_bctides.py hgrid.ll 2012-10-27 2.333 \
+    --bc_mode time-elev \
+    --bc_type 4 \
+    --elev_th elev.th \
+    --vgrid vgrid.in
 
 Contact:
 
-Mansur Ali Jisan (mansur.jisan@noaa.gov)
+Mansur Jisan (mansur.jisan@noaa.gov)
 NOAA/NOS/CO-OPS
 
-Version: 1.1
-Last Updated: January 2025
+Version: 1.0
+Last Updated: December 2024
+
 """
 
 from time import time
@@ -78,14 +80,13 @@ from pyschism.mesh.vgrid import Vgrid
 import numpy as np
 from pyschism.mesh import Hgrid
 from pyschism.forcing.bctides import Bctides
-from pyschism.forcing.hycom.hycom2schism import OpenBoundaryInventory
 
-#import warnings
-#warnings.filterwarnings('ignore')
-#logging.basicConfig(level=logging.WARNING)
-#for logger in ['matplotlib', 'fiona', 'PIL', 'pyschism']:
-#    logging.getLogger(logger).setLevel(logging.WARNING)
-#
+import warnings
+warnings.filterwarnings('ignore')
+logging.basicConfig(level=logging.WARNING)
+for logger in ['matplotlib', 'fiona', 'PIL', 'pyschism']:
+    logging.getLogger(logger).setLevel(logging.WARNING)
+
 def list_of_strings(arg):
     return arg.split(',')
 
@@ -156,38 +157,6 @@ def create_elev2d_th_nc(filename, timeseries_data, hgrid, vgrid):
         nc.Conventions = "CF-1.6"
         nc.history = "Created by SCHISM boundary condition generator"
 
-def detect_ocean_boundaries(hgrid, hgrid_file):
-    # Get boundary info from hgrid file
-    num_boundaries, nodes_per_boundary = read_hgrid_boundaries(hgrid_file)
-    ocean_bnd_ids = list(range(num_boundaries))  # Use all boundaries by default
-    
-    print(f"Total boundaries: {num_boundaries}")
-    print(f"Nodes per boundary: {nodes_per_boundary}")
-    
-    return ocean_bnd_ids
-
-
-def create_elev2d_from_hycom(hgrid, vgrid, outdir, start_date, rnday, ocean_bnd_ids=None, elev2D=True, TS=False, UV=False, hgrid_file=None):
-    if ocean_bnd_ids is None:
-        num_boundaries, _ = read_hgrid_boundaries(hgrid_file)
-        ocean_bnd_ids = list(range(num_boundaries))
-        print(f"Using boundaries: {ocean_bnd_ids}")
-
-    print(f"elev2D={elev2D}, TS={TS}, UV={UV}")
-    
-    # Convert vgrid object to path string if needed
-
-    vgrid_path = vgrid.path if hasattr(vgrid, 'path') else args.vgrid
-    
-    try:
-        bnd = OpenBoundaryInventory(hgrid, vgrid_path)
-        bnd.fetch_data(outdir, start_date, rnday, elev2D=elev2D, TS=TS, UV=UV,
-                      ocean_bnd_ids=ocean_bnd_ids)
-    except Exception as e:
-        print(f"Error details - hgrid type: {type(hgrid)}, vgrid type: {type(vgrid)}")
-        print(f"Ocean boundaries: {ocean_bnd_ids}")
-        raise e
-    
 def read_hgrid_boundaries(hgrid_file):
     """
     Read boundary information from hgrid.ll file
@@ -334,64 +303,48 @@ if __name__ == "__main__":
                       help="Salinity nudging factors")
 
     parser.add_argument('--bc_type', type=int, required=True,
-                      help="Boundary condition type (e.g., 4 for timeseries of water elevation)")
+                   help="Boundary condition type (e.g., 4 for timeseries of water elevation)")
 
     parser.add_argument('--elev_th', type=str, 
-                      help='Path to elevation timeseries file (required for type 4 bc type to create 2D.th.nc file)')
+                   help='Path to elevation timeseries file (required for type 4 bc type to create 2D.th.nc file)')
 
     parser.add_argument('--vgrid', type=str, help='Path to vgrid.in file')
     
     parser.add_argument('--additional_flags', type=int, nargs='*',
-                      help="Additional flag values (default depends on boundary type)")
-
-    parser.add_argument('--elev_source', type=str, choices=['timeseries', 'hycom'], 
-                      help='Source of elevation data: timeseries (elev.th) or HYCOM')
-
-    parser.add_argument('--ocean_bnd_ids', type=list_of_strings,
-                      help='Ocean boundary segment indices for HYCOM data (comma-separated)')
+                   help="Additional flag values (default depends on boundary type)")
     
-    parser.add_argument('--gen_bc', type=list_of_strings, default=['elev'],
-                      help='Boundary conditions to generate: elev,temp,salt,vel (comma-separated)')
-
     args = parser.parse_args()
     outdir = './'
 
-    
     try:
+        # Read and validate boundary information
+
         num_boundaries, nodes_per_boundary = read_hgrid_boundaries(args.hgrid)
+        print(f"Processing {num_boundaries} open boundaries with {nodes_per_boundary[0]} nodes")
+
         flags = create_boundary_flags(nodes_per_boundary, args.bc_type, args.additional_flags)
+        print(f"Generated flags: {flags}")
         
+        # Parse and validate flags
         if args.bc_mode == 'time-elev':
+            if not args.elev_th:
+                raise ValueError("Elevation timeseries file (--elev_th) required for time-elev mode")
+    
             hgrid = Hgrid.open(args.hgrid, crs="epsg:4326")
             vgrid = Vgrid.open(args.vgrid) if args.vgrid else None
-            
+    
             # Generate bctides.in
             write_timelev_bctides(outdir, args.start_date, flags)
-            
-            # Generate elev2D.th.nc based on source
-            if args.elev_source == 'timeseries':
-                if not args.elev_th:
-                    raise ValueError("Elevation timeseries file (--elev_th) required for timeseries mode")
-                timeseries_data = np.loadtxt(args.elev_th)
-                create_elev2d_th_nc('elev2D.th.nc', timeseries_data, hgrid, vgrid)
-            elif args.elev_source == 'hycom':
-                # Convert options to booleans
-                elev2D = 'elev' in args.gen_bc
-                TS = any(x in args.gen_bc for x in ['temp', 'salt'])
-                UV = 'vel' in args.gen_bc
     
-                ocean_bnd_ids = [int(i) for i in args.ocean_bnd_ids] if args.ocean_bnd_ids else None
-
-                create_elev2d_from_hycom(hgrid, vgrid, outdir, args.start_date, args.rnday,
-                                         ocean_bnd_ids=ocean_bnd_ids, elev2D=elev2D, TS=TS, UV=UV,
-                                         hgrid_file=args.hgrid)
-                
-
+            # Generate elev2D.th.nc
+            timeseries_data = np.loadtxt(args.elev_th)
+            create_elev2d_th_nc('elev2D.th.nc', timeseries_data, hgrid, vgrid)
+    
             print(f"\nSuccessfully generated boundary files:")
             print(f"  bctides.in: {os.path.abspath(outdir)}")
             print(f"  elev2D.th.nc: {os.path.abspath('elev2D.th.nc')}")
             print(f"  Start date: {args.start_date}")
-
+    
 
         else:
 

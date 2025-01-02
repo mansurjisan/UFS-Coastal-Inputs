@@ -7,7 +7,7 @@ usage: python gen_gr3_input.py
 
 a. To generate bctides.in for Ike Shinnecock regression test:
 
-python gen_bctides.py hgrid.ll 2008-08-23 20 \
+python gen_bctides.py ../../data/hgrid.ll 2008-08-23 20 \
     --bc_mode tidal \
     --bc_type 3 \
     --constituents Q1,O1,P1,K1,N2,M2,S2,K2,Mm,Mf,M4,MN4,MS4,2N2,S1 \
